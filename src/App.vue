@@ -170,7 +170,7 @@ const clickOutside = () => {
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none; /* Чтобы линии не мешали взаимодействию с блоками */
+  pointer-events: none;
 }
 
 .box {
