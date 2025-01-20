@@ -4,6 +4,9 @@ import { useStore } from "vuex";
 import type { IBlock } from "./store/modules/blocks";
 import type { IConnection } from "./store/modules/connections";
 
+import Block from "./components/Block.vue";
+import ConnectionLine from "./components/ConnectionLine.vue";
+
 const store = useStore();
 // Данные о блоках и текущем перетаскиваемом блоке
 const blocks = computed<IBlock[]>(() => store.getters["blocks/allBlocks"]);
@@ -126,32 +129,26 @@ const clickOutside = () => {
   <div @pointerup="clickOutside" id="parent">
     <!-- SVG для отрисовки связей -->
     <svg class="connections">
-      <line
+      <ConnectionLine
         v-for="(line, index) in connectionLines"
         :key="index"
         :x1="line.x1"
         :y1="line.y1"
         :x2="line.x2"
         :y2="line.y2"
-        stroke="black"
-        stroke-width="2"
       />
     </svg>
 
     <!-- Блоки -->
-    <div
+    <Block
       v-for="block in blocks"
       :key="block.id"
-      :style="{ transform: `translate(${block.x}px, ${block.y}px)` }"
-      class="box"
-      :class="{ selected: block.id === selectedBlockId }"
-      @pointerdown="startDrag($event, block.id)"
-      @pointermove="drag"
-      @pointerup.stop="stopDrag"
-      @pointerleave="stopDrag"
-    >
-      <span>{{ block.id }}</span>
-    </div>
+      :block="block"
+      :isSelected="block.id === selectedBlockId"
+      @dragstart="startDrag"
+      @drag="drag"
+      @dragend="stopDrag"
+    />
   </div>
 </template>
 
@@ -171,25 +168,5 @@ const clickOutside = () => {
   width: 100%;
   height: 100%;
   pointer-events: none;
-}
-
-.box {
-  position: absolute;
-  width: 100px;
-  height: 100px;
-  background: indianred;
-  color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: grab;
-  user-select: none;
-  border-radius: 5px;
-}
-
-.box.selected {
-  border: 3px solid yellow;
-  background: lightcoral;
-  cursor: pointer;
 }
 </style>
