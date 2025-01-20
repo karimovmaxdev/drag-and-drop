@@ -10,8 +10,8 @@ export interface IBlock {
 export type selectedId = number | null;
 
 export interface IBlocksState {
-  blocks: IBlock[];
-  draggingBlockId: selectedId;
+  blocks: IBlock[]; // список всех блоков для рендера
+  currentDraggingBlock: IBlock | null; // блок который перетаскивается в данный момент
 }
 
 const blocksModule: Module<IBlocksState, any> = {
@@ -22,8 +22,8 @@ const blocksModule: Module<IBlocksState, any> = {
       { id: 2, x: 500, y: 100 },
       { id: 3, x: 100, y: 500 },
       { id: 4, x: 500, y: 500 },
-    ], // Массив блоков для рендера
-    draggingBlockId: null, // блок который драгается в данный момент
+    ],
+    currentDraggingBlock: null,
   }),
   mutations: {
     updateBlockPosition(state, { id, x, y }: IBlock) {
@@ -33,16 +33,16 @@ const blocksModule: Module<IBlocksState, any> = {
         block.y = y;
       }
     },
-    setDraggingBlock(state, blockId: number | null) {
-      state.draggingBlockId = blockId;
+    setCurrentDraggingBlock(state, block: IBlock | null) {
+      state.currentDraggingBlock = block;
     },
   },
   getters: {
     allBlocks(state) {
       return state.blocks;
     },
-    draggingBlockId(state) {
-      return state.draggingBlockId;
+    currentDraggingBlock(state) {
+      return state.currentDraggingBlock;
     },
   },
 };

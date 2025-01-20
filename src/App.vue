@@ -1,22 +1,22 @@
 <script lang="ts" setup>
 import { ref, computed } from "vue";
 import { useStore } from "vuex";
-import type { IBlock, selectedId } from "./store/modules/blocks";
-import type { IConnection, activeBlock } from "./store/modules/connections";
+import type { IBlock } from "./store/modules/blocks";
+import type { IConnection } from "./store/modules/connections";
 
 const store = useStore();
-// Данные о блоках и активном блоке для драга
+// Данные о блоках и текущем перетаскиваемом блоке
 const blocks = computed<IBlock[]>(() => store.getters["blocks/allBlocks"]);
-const draggingBlockId = computed<selectedId>(
-  () => store.getters["blocks/draggingBlockId"]
+const currentDraggingBlock = computed<IBlock | null>(
+  () => store.getters["blocks/currentDraggingBlock"]
 );
 const offset = ref({ x: 0, y: 0 }); // Смещение курсора относительно блока
 
-// Список связей и выбранного блока для обнолвения связей
+// Список связей и выбранного блока для обновления связей
 const connections = computed<IConnection[]>(
   () => store.getters["connections/allConnections"]
 );
-const selectedBlockId = computed<activeBlock>(
+const selectedBlockId = computed<number | null>(
   () => store.getters["connections/selectedBlockId"]
 );
 
@@ -25,7 +25,7 @@ const startDrag = (event: PointerEvent, blockId: number) => {
   const block = blocks.value.find((b) => b.id === blockId);
   if (!block) return;
 
-  store.commit("blocks/setDraggingBlock", blockId);
+  store.commit("blocks/setCurrentDraggingBlock", block);
 
   // Вычисляем смещение курсора относительно блока
   offset.value = {
@@ -35,21 +35,18 @@ const startDrag = (event: PointerEvent, blockId: number) => {
 
   const target = event.target as HTMLElement;
   target.setPointerCapture(event.pointerId);
-  if (draggingBlockId.value) {
-    selectBlock(draggingBlockId.value);
+  if (currentDraggingBlock.value) {
+    selectBlock(currentDraggingBlock.value.id);
   }
 };
 
 // Перетаскивание
 const drag = (event: PointerEvent) => {
-  if (draggingBlockId.value === null) return;
-  // Находим текущий блок
-  const block = blocks.value.find((b) => b.id === draggingBlockId.value);
-  if (!block) return;
+  if (!currentDraggingBlock.value) return;
 
-  // Обновляем координаты блока через Vuex
+  // Обновляем координаты блока через
   store.commit("blocks/updateBlockPosition", {
-    id: block.id,
+    id: currentDraggingBlock.value.id,
     x: event.clientX - offset.value.x,
     y: event.clientY - offset.value.y,
   });
@@ -57,18 +54,20 @@ const drag = (event: PointerEvent) => {
 
 // Завершение перетаскивания
 const stopDrag = (event: PointerEvent) => {
-  if (draggingBlockId.value !== null) {
+  if (currentDraggingBlock.value !== null) {
     const target = event.target as HTMLElement;
     target.releasePointerCapture(event.pointerId);
-    store.commit("blocks/setDraggingBlock", null);
+    store.commit("blocks/setCurrentDraggingBlock", null);
   }
 };
 
-// Выбрать блок
+// Выбрать блок для установки связи
 const selectBlock = (blockId: number) => {
   // Если ни один блок не выбран, выбираем текущий
   if (selectedBlockId.value === null) {
+    const block = blocks.value.find((b) => b.id === blockId);
     store.commit("connections/setSelectedBlock", blockId);
+    store.commit("blocks/setCurrentDraggingBlock", block); // Устанавливаем текущий перетаскиваемый блок
   } else {
     // Если блок уже выбран, проверяем на существующую связь
     const existingConnectionIndex = connections.value.findIndex(
@@ -94,36 +93,37 @@ const selectBlock = (blockId: number) => {
 
     // Сбрасываем выбор
     store.commit("connections/setSelectedBlock", null);
+    store.commit("blocks/setCurrentDraggingBlock", null);
   }
 };
 
 // Вычисляем координаты всех связей
-const connectionLines = computed(
-  () =>
-    connections.value
-      .map((connection) => {
-        const fromBlock = blocks.value.find((b) => b.id === connection.from);
-        const toBlock = blocks.value.find((b) => b.id === connection.to);
+const connectionLines = computed(() =>
+  connections.value
+    .map((connection) => {
+      const fromBlock = blocks.value.find((b) => b.id === connection.from);
+      const toBlock = blocks.value.find((b) => b.id === connection.to);
 
-        if (!fromBlock || !toBlock) return null;
+      if (!fromBlock || !toBlock) return false;
 
-        return {
-          x1: fromBlock.x + 50,
-          y1: fromBlock.y + 50,
-          x2: toBlock.x + 50,
-          y2: toBlock.y + 50,
-        };
-      })
-      .filter((line) => line !== null) // Убираем null
+      return {
+        x1: fromBlock.x + 50,
+        y1: fromBlock.y + 50,
+        x2: toBlock.x + 50,
+        y2: toBlock.y + 50,
+      };
+    })
+    .filter((line) => line !== false)
 );
 
-const clearSelection = () => {
+const clickOutside = () => {
   store.commit("connections/setSelectedBlock", null);
+  store.commit("blocks/setCurrentDraggingBlock", null);
 };
 </script>
 
 <template>
-  <div @pointerup="clearSelection" id="parent">
+  <div @pointerup="clickOutside" id="parent">
     <!-- SVG для отрисовки связей -->
     <svg class="connections">
       <line
